@@ -108,7 +108,11 @@ export default function OCRExtractor() {
               <span className="text-foreground/80">em planilhas Excel</span>
             </h2>
             <p className="text-muted-foreground text-base max-w-md mx-auto">
-              Faça upload dos seus PDFs. Extraímos texto nativamente e aplicamos OCR em imagens para gerar um Excel completo.
+              Faça upload dos seus PDFs. Extraímos texto nativamente e aplicamos{' '}
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 border border-primary/30 px-2 py-0.5 text-primary font-semibold tracking-wide text-sm">
+                OCR
+              </span>{' '}
+              em imagens para gerar um Excel completo.
             </p>
           </div>
         )}
