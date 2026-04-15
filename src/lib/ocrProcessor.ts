@@ -48,10 +48,11 @@ const LABEL_SYNONYMS: Record<string, string> = {
   naturalidade: 'Naturalidade', nacionalidade: 'Nacionalidade',
   sexo: 'Sexo', genero: 'Sexo', estadocivil: 'Estado Civil',
   profissao: 'Profissão', ocupacao: 'Profissão', cargo: 'Cargo',
-  // Contato
-  tel: 'Telefone', telefone: 'Telefone', fone: 'Telefone', celular: 'Telefone',
-  cel: 'Telefone', whatsapp: 'WhatsApp', wpp: 'WhatsApp', contato: 'Contato',
+  // Contato — Telefone fixo e Celular em colunas separadas
+  tel: 'Telefone', telefone: 'Telefone', fone: 'Telefone',
   phone: 'Telefone', ramal: 'Ramal', fax: 'Fax',
+  celular: 'Celular', cel: 'Celular', movel: 'Celular', mobile: 'Celular',
+  whatsapp: 'WhatsApp', wpp: 'WhatsApp', contato: 'Contato',
   email: 'Email', 'e-mail': 'Email', mail: 'Email', correio: 'Email',
   site: 'Site', website: 'Site', url: 'Site',
   // Documentos pessoais
@@ -68,17 +69,19 @@ const LABEL_SYNONYMS: Record<string, string> = {
   dataemissao: 'Data Emissão', dataentrega: 'Data Entrega',
   prazo: 'Prazo', vencimento: 'Vencimento', entrega: 'Entrega',
   validade: 'Validade', hora: 'Hora', horario: 'Horário',
-  // Endereço
-  endereco: 'Endereço', logradouro: 'Endereço',
+  // Endereço — todas as variações sem acento mapeadas
+  endereco: 'Endereço', logradouro: 'Endereço', address: 'Endereço',
   rua: 'Rua', av: 'Avenida', avenida: 'Avenida', alameda: 'Alameda',
   travessa: 'Travessa', estrada: 'Estrada', rodovia: 'Rodovia',
   numero: 'Número', nro: 'Número', complemento: 'Complemento', apto: 'Complemento',
   bairro: 'Bairro', distrito: 'Distrito', setor: 'Setor',
   cidade: 'Cidade', municipio: 'Cidade', localidade: 'Cidade', city: 'Cidade',
-  estado: 'UF', uf: 'UF', pais: 'País', country: 'País',
+  // UF/Estado: uf, estado, provincia todos → UF
+  estado: 'UF', uf: 'UF', provincia: 'UF', pais: 'País', country: 'País',
   cep: 'CEP', zip: 'CEP',
-  // Produto / Objeto
-  produto: 'Produto', item: 'Item', mercadoria: 'Produto', product: 'Produto',
+  // Produto / Objeto — inclui aliases com e sem acento e variações de digitação
+  produto: 'Produto', product: 'Produto', mercadoria: 'Produto',
+  item: 'Item', intem: 'Item', itens: 'Item', items: 'Item',
   servico: 'Serviço', bem: 'Bem', ativo: 'Ativo',
   cor: 'Cor', color: 'Cor', colour: 'Cor',
   tamanho: 'Tamanho', tam: 'Tamanho', size: 'Tamanho', medida: 'Medida',
@@ -95,12 +98,12 @@ const LABEL_SYNONYMS: Record<string, string> = {
   pedido: 'Pedido', ordem: 'Ordem', protocolo: 'Protocolo', processo: 'Processo',
   nota: 'Nota Fiscal', nf: 'Nota Fiscal', nfe: 'NF-e', serie: 'Série', chave: 'Chave',
   contrato: 'Contrato', apolice: 'Apólice', sinistro: 'Sinistro',
-  // Produto/Objeto
+  // Produto/Objeto (atributos)
   marca: 'Marca', modelo: 'Modelo', referencia: 'Referência', sku: 'SKU',
   categoria: 'Categoria', tipo: 'Tipo', status: 'Status', situacao: 'Situação',
   descricao: 'Descrição', obs: 'Observação', observacao: 'Observação',
   especificacao: 'Especificação', caracteristica: 'Característica',
-  serie: 'Série', lote: 'Lote', fabricacao: 'Fabricação', garantia: 'Garantia',
+  lote: 'Lote', fabricacao: 'Fabricação', garantia: 'Garantia',
   // Pagamento
   pagamento: 'Pagamento', forma: 'Forma Pagamento', parcelas: 'Parcelas',
   banco: 'Banco', agencia: 'Agência', conta: 'Conta', pix: 'PIX',
@@ -267,8 +270,11 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     }
   };
 
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+
     // ── 1. Tenta separar múltiplos KV na mesma linha (ex: "Cidade: Anápolis, UF: MG")
+    //      `:` e `=` são os separadores primários — verificados antes de qualquer outra lógica
     const multiPairs = parseMultipleKVsFromLine(line);
     if (multiPairs.length >= 2) {
       for (const [lbl, val] of multiPairs) {
@@ -279,7 +285,8 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
       continue;
     }
 
-    // ── 2. KV simples: "Chave: Valor" ou "Chave = Valor"
+    // ── 2. KV simples com valor na mesma linha: "Chave: Valor" ou "Chave = Valor"
+    //      Prioridade máxima para separadores `:` e `=`
     const kvMatch = line.match(/^(.{1,50}?)\s*[:=]\s*(.+)$/);
     if (kvMatch) {
       const rawLabel = kvMatch[1].trim();
@@ -287,6 +294,25 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
       if (rawLabel.length >= 1 && rawLabel.length <= 40 && !/^\d+$/.test(rawLabel)) {
         addField(rawLabel, value);
         continue;
+      }
+    }
+
+    // ── 2b. Rótulo sozinho na linha (ex: "cidade:") + valor na próxima linha
+    //       Suporta o padrão: "cidade:\nanápolis"
+    const labelOnlyMatch = line.match(/^([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\s\-\.]{1,35})\s*[:=]\s*$/);
+    if (labelOnlyMatch) {
+      const rawLabel = labelOnlyMatch[1].trim();
+      const labelKey = normalizeKey(rawLabel);
+      // Só aceita se for palavra conhecida do dicionário
+      if (CONTEXT_KEYWORDS.has(labelKey) && li + 1 < lines.length) {
+        const nextLine = lines[li + 1].trim();
+        // Próxima linha não pode ser outro rótulo
+        const nextIsLabel = /^(.{1,50}?)\s*[:=]\s*(.*)$/.test(nextLine);
+        if (!nextIsLabel && nextLine.length > 0 && nextLine.length <= 100) {
+          addField(rawLabel, nextLine);
+          li++; // pula a linha do valor
+          continue;
+        }
       }
     }
 
@@ -355,13 +381,59 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
   return fields;
 }
 
+// ─── Chaves âncora que identificam início de nova entidade ───────────────────
+// Quando uma dessas chaves aparece pela segunda vez num mesmo bloco,
+// o bloco é dividido, garantindo que cada linha do Excel = 1 entidade.
+
+const ENTITY_ANCHOR_KEYS = new Set([
+  'nome', 'name', 'cliente', 'comprador', 'segurado', 'paciente',
+  'funcionario', 'colaborador', 'cpf', 'cnpj',
+  'empresa', 'razaosocial', 'nomefantasia',
+]);
+
+function splitBlockByEntities(block: string): string[] {
+  const lines = block.split('\n');
+  const segments: string[][] = [];
+  let current: string[] = [];
+  let anchorsSeen = new Set<string>();
+
+  for (const line of lines) {
+    // Detecta se a linha começa com uma chave âncora seguida de : ou =
+    const kvMatch = line.match(/^(.{1,50}?)\s*[:=]\s*/);
+    if (kvMatch) {
+      const key = normalizeKey(kvMatch[1]);
+      if (ENTITY_ANCHOR_KEYS.has(key)) {
+        if (anchorsSeen.has(key) && current.length > 0) {
+          // Nova entidade detectada — inicia novo segmento
+          segments.push(current);
+          current = [line];
+          anchorsSeen = new Set([key]);
+          continue;
+        }
+        anchorsSeen.add(key);
+      }
+    }
+    current.push(line);
+  }
+  if (current.length > 0) segments.push(current);
+  return segments.map(s => s.join('\n').trim()).filter(s => s.length > 3);
+}
+
 // ─── Divisão em blocos de registros ─────────────────────────────────────────
 
 function splitIntoBlocks(text: string): string[] {
+  // Primeiro divide por linhas em branco ou separadores visuais
   const parts = text.split(/\n{2,}|[-=_]{3,}/);
-  const blocks = parts.map(p => p.trim()).filter(p => p.length > 3);
-  if (blocks.length === 1) return [blocks[0]];
-  return blocks;
+  const rawBlocks = parts.map(p => p.trim()).filter(p => p.length > 3);
+
+  // Depois subdivide cada bloco por entidades âncora repetidas
+  const result: string[] = [];
+  for (const block of rawBlocks) {
+    const subBlocks = splitBlockByEntities(block);
+    result.push(...subBlocks);
+  }
+
+  return result.length > 0 ? result : rawBlocks;
 }
 
 // ─── Renderizar página PDF em canvas ─────────────────────────────────────────
@@ -578,7 +650,7 @@ const PRIORITY_COLUMNS = [
   // Empresa
   'Empresa', 'Razão Social', 'Nome Fantasia', 'CNPJ',
   // Contato
-  'Telefone', 'WhatsApp', 'Fax', 'Email', 'Site', 'Contato',
+  'Telefone', 'Celular', 'WhatsApp', 'Fax', 'Email', 'Site', 'Contato',
   // Endereço
   'Endereço', 'Rua', 'Avenida', 'Número', 'Complemento', 'Bairro',
   'Cidade', 'UF', 'CEP', 'País',
