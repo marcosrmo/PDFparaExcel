@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Eye, EyeOff, CheckCircle2, XCircle, BarChart3, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle2, XCircle, BarChart3, AlertTriangle, Info } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ExtractedRecord } from '@/lib/ocrProcessor';
 import { getAllColumns } from '@/lib/ocrProcessor';
 
-const PAGE_SIZE = 50;
+const PREVIEW_LIMIT = 20;
 
 interface DataTableProps {
   records: ExtractedRecord[];
@@ -14,7 +14,6 @@ interface DataTableProps {
 
 export function DataTable({ records }: DataTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
 
   if (!records.length) return null;
 
@@ -22,8 +21,8 @@ export function DataTable({ records }: DataTableProps) {
   const errorRecords = records.filter(r => r.hasError);
   const columns = getAllColumns(successRecords);
   const uniqueFiles = new Set(records.map(r => r.fileName)).size;
-  const totalPages = Math.ceil(records.length / PAGE_SIZE);
-  const pageRecords = records.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const previewRecords = records.slice(0, PREVIEW_LIMIT);
+  const hasMore = records.length > PREVIEW_LIMIT;
 
   return (
     <div className="space-y-5">
@@ -39,7 +38,7 @@ export function DataTable({ records }: DataTableProps) {
             {successRecords.length} {successRecords.length === 1 ? 'registro' : 'registros'}
           </Badge>
           <Badge variant="secondary" className="gap-1.5 border border-border/60 px-3 py-1">
-            {uniqueFiles} {uniqueFiles === 1 ? 'imagem' : 'imagens'}
+            {uniqueFiles} {uniqueFiles === 1 ? 'arquivo' : 'arquivos'}
           </Badge>
           <Badge variant="secondary" className="gap-1.5 border border-primary/20 bg-primary/5 text-primary px-3 py-1">
             {columns.length} {columns.length === 1 ? 'coluna detectada' : 'colunas detectadas'}
@@ -52,6 +51,17 @@ export function DataTable({ records }: DataTableProps) {
           )}
         </div>
       </div>
+
+      {/* Aviso de pré-visualização */}
+      {hasMore && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <Info className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-sm font-medium text-amber-300 leading-snug">
+            Pré-visualização de <span className="font-bold">{PREVIEW_LIMIT}</span> registros apenas.
+            O total de <span className="font-bold">{records.length}</span> registros está no arquivo que você irá baixar.
+          </p>
+        </div>
+      )}
 
       {/* Colunas detectadas */}
       {columns.length > 0 && (
@@ -84,7 +94,7 @@ export function DataTable({ records }: DataTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageRecords.map((r, idx) => (
+            {previewRecords.map((r, idx) => (
               <TableRow
                 key={r.id}
                 className={`border-b border-border/30 transition-colors duration-150 ${
@@ -92,7 +102,7 @@ export function DataTable({ records }: DataTableProps) {
                 }`}
               >
                 <TableCell className="text-xs text-muted-foreground text-center font-mono sticky left-0 bg-card/70">
-                  {page * PAGE_SIZE + idx + 1}
+                  {idx + 1}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-[130px]">
                   <span className="block truncate" title={r.fileName}>{r.fileName}</span>
@@ -102,7 +112,7 @@ export function DataTable({ records }: DataTableProps) {
                   <TableCell colSpan={columns.length} className="py-3">
                     <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
                       <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
-                      Nenhum dado detectado — verifique a qualidade da imagem
+                      Nenhum dado detectado — verifique a qualidade do PDF
                     </span>
                   </TableCell>
                 ) : (
@@ -154,38 +164,6 @@ export function DataTable({ records }: DataTableProps) {
           </TableBody>
         </Table>
       </div>
-
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-1">
-          <p className="text-xs text-muted-foreground">
-            Mostrando {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, records.length)} de {records.length} registros
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-8 w-8"
-              disabled={page === 0}
-              onClick={() => { setPage(p => p - 1); setExpandedId(null); }}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs font-medium text-foreground/70 min-w-[5rem] text-center">
-              Página {page + 1} de {totalPages}
-            </span>
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-8 w-8"
-              disabled={page >= totalPages - 1}
-              onClick={() => { setPage(p => p + 1); setExpandedId(null); }}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
