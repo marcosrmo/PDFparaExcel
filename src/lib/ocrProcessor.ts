@@ -219,21 +219,19 @@ function detectName(text: string): string {
 
 // ─── Separação de múltiplos campos na mesma linha ─────────────────────────────
 // Resolve: "Cidade: Anápolis, UF: MG" → [["Cidade","Anápolis"], ["UF","MG"]]
+// Só divide quando há 2+ rótulos CONHECIDOS na mesma linha (evita cortar valores)
 
 function parseMultipleKVsFromLine(line: string): Array<[string, string]> {
-  // Encontra todas as posições de "Label:" ou "Label =" na linha
-  const labelRe = /(?:^|[,;\s]\s*)([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\s\-\.\/]{0,35}?)\s*[:=]\s*/g;
+  // Rótulos SEM espaço — palavras simples seguidas de : ou =
+  const labelRe = /(?:^|[,;]\s*|\s{2,})([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\-\.]{1,35})\s*[:=]\s*/g;
   const positions: Array<{ label: string; valueStart: number; matchStart: number }> = [];
 
   let m: RegExpExecArray | null;
   while ((m = labelRe.exec(line)) !== null) {
     const label = m[1].trim();
-    if (
-      label.length >= 1 &&
-      label.length <= 40 &&
-      !/^\d/.test(label) &&
-      !/^\s*$/.test(label)
-    ) {
+    const labelKey = normalizeKey(label);
+    // Só aceita rótulos que são palavras conhecidas do dicionário
+    if (CONTEXT_KEYWORDS.has(labelKey)) {
       positions.push({
         label,
         valueStart: m.index + m[0].length,
@@ -242,13 +240,14 @@ function parseMultipleKVsFromLine(line: string): Array<[string, string]> {
     }
   }
 
-  if (positions.length === 0) return [];
+  // Só aplica divisão se houver 2 ou mais rótulos conhecidos na linha
+  if (positions.length < 2) return [];
 
   const pairs: Array<[string, string]> = [];
   for (let i = 0; i < positions.length; i++) {
     const start = positions[i].valueStart;
     const end = i + 1 < positions.length ? positions[i + 1].matchStart : line.length;
-    let value = line.slice(start, end).replace(/[,;\s]+$/, '').trim();
+    let value = line.slice(start, end).replace(/[,;]\s*$/, '').trim();
     if (value) pairs.push([positions[i].label, value]);
   }
 
