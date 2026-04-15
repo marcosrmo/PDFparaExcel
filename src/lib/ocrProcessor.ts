@@ -64,6 +64,9 @@ const LABEL_SYNONYMS: Record<string, string> = {
   empresa: 'Empresa', razaosocial: 'Razão Social', nomefantasia: 'Nome Fantasia',
   fantasia: 'Nome Fantasia', fornecedor: 'Fornecedor', fabricante: 'Fabricante',
   transportadora: 'Transportadora', parceiro: 'Parceiro',
+  // Documentos fiscais da empresa
+  ie: 'IE', inscricaoestadual: 'IE', insc: 'IE', inscestadual: 'IE',
+  im: 'IM', inscricaomunicipal: 'IM', inscmunicipal: 'IM',
   // Data/Hora
   data: 'Data', date: 'Data', dt: 'Data', dia: 'Data',
   dataemissao: 'Data Emissão', dataentrega: 'Data Entrega',
@@ -647,7 +650,7 @@ const PRIORITY_COLUMNS = [
   'Nome', 'CPF', 'RG', 'CNH', 'PIS', 'Matrícula', 'Nascimento', 'Sexo', 'Estado Civil',
   'Naturalidade', 'Nacionalidade', 'Profissão', 'Cargo',
   // Empresa
-  'Empresa', 'Razão Social', 'Nome Fantasia', 'CNPJ',
+  'Empresa', 'Razão Social', 'Nome Fantasia', 'CNPJ', 'IE', 'IM',
   // Contato
   'Telefone', 'Celular', 'WhatsApp', 'Fax', 'Email', 'Site', 'Contato',
   // Endereço
