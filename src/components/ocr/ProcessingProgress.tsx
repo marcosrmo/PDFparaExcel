@@ -1,13 +1,15 @@
-import { Loader2, Image } from 'lucide-react';
+import { Loader2, FileText, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
 interface ProcessingProgressProps {
   current: number;
   total: number;
   currentFileName: string;
+  onCancel: () => void;
 }
 
-export function ProcessingProgress({ current, total, currentFileName }: ProcessingProgressProps) {
+export function ProcessingProgress({ current, total, currentFileName, onCancel }: ProcessingProgressProps) {
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
 
   return (
@@ -21,9 +23,9 @@ export function ProcessingProgress({ current, total, currentFileName }: Processi
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Analisando imagens com OCR...</p>
+            <p className="text-sm font-semibold text-foreground">Analisando PDFs com OCR...</p>
             <p className="text-xs text-muted-foreground">
-              Imagem {current + 1} de {total}
+              Arquivo {current + 1} de {total}
             </p>
           </div>
         </div>
@@ -32,8 +34,8 @@ export function ProcessingProgress({ current, total, currentFileName }: Processi
 
       {currentFileName && (
         <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 border border-border/40">
-          <Image className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-          <p className="text-xs text-muted-foreground truncate">{currentFileName}</p>
+          <FileText className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+          <p className="text-xs text-muted-foreground truncate flex-1">{currentFileName}</p>
         </div>
       )}
 
@@ -43,6 +45,18 @@ export function ProcessingProgress({ current, total, currentFileName }: Processi
           <span>0%</span>
           <span>100%</span>
         </div>
+      </div>
+
+      <div className="flex justify-center pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/70 transition-all duration-200"
+        >
+          <XCircle className="h-4 w-4" />
+          Cancelar processamento
+        </Button>
       </div>
     </div>
   );

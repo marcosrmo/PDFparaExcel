@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Play, Download, Trash2, Sparkles } from 'lucide-react';
 import logoUrl from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { DropZone } from '@/components/ocr/DropZone';
 import { ImagePreviewList } from '@/components/ocr/ImagePreviewList';
 import { ProcessingProgress } from '@/components/ocr/ProcessingProgress';
 import { DataTable } from '@/components/ocr/DataTable';
-import { processPDFs, type ExtractedRecord } from '@/lib/ocrProcessor';
+import { processPDFs, type ExtractedRecord, type CancellationToken } from '@/lib/ocrProcessor';
 import { exportToExcel } from '@/lib/excelExport';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,6 +15,7 @@ export default function OCRExtractor() {
   const [records, setRecords] = useState<ExtractedRecord[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, fileName: '' });
+  const cancellationTokenRef = useRef<CancellationToken | null>(null);
   const { toast } = useToast();
 
   const handleFilesSelected = useCallback((newFiles: File[]) => {
@@ -27,13 +28,26 @@ export default function OCRExtractor() {
 
   const handleProcess = useCallback(async () => {
     if (!files.length) return;
+    const token: CancellationToken = { cancelled: false };
+    cancellationTokenRef.current = token;
     setIsProcessing(true);
     setRecords([]);
 
     try {
       const results = await processPDFs(files, (current, total, fileName) => {
         setProgress({ current, total, fileName });
-      });
+      }, token);
+
+      if (token.cancelled) {
+        toast({
+          title: 'Processamento cancelado',
+          description: `${results.length} registro(s) já extraídos foram mantidos.`,
+          variant: 'destructive',
+        });
+        setRecords(results);
+        return;
+      }
+
       setRecords(results);
       const successCount = results.filter((r) => !r.hasError).length;
       const colCount = new Set(results.flatMap(r => Object.keys(r.fields))).size;
@@ -49,8 +63,15 @@ export default function OCRExtractor() {
       });
     } finally {
       setIsProcessing(false);
+      cancellationTokenRef.current = null;
     }
   }, [files, toast]);
+
+  const handleCancel = useCallback(() => {
+    if (cancellationTokenRef.current) {
+      cancellationTokenRef.current.cancelled = true;
+    }
+  }, []);
 
   const handleExport = useCallback(() => {
     const validRecords = records.filter((r) => !r.hasError);
@@ -149,6 +170,7 @@ export default function OCRExtractor() {
             current={progress.current}
             total={progress.total}
             currentFileName={progress.fileName}
+            onCancel={handleCancel}
           />
         )}
 

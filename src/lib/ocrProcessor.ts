@@ -20,6 +20,10 @@ export interface ExtractedRecord {
 
 export type ProgressCallback = (current: number, total: number, fileName: string) => void;
 
+export interface CancellationToken {
+  cancelled: boolean;
+}
+
 // ─── Normalização de texto ───────────────────────────────────────────────────
 
 function normalizeOcrText(text: string): string {
@@ -298,12 +302,15 @@ async function getWorker(): Promise<Worker> {
 
 export async function processPDFs(
   files: File[],
-  onProgress: ProgressCallback
+  onProgress: ProgressCallback,
+  cancellationToken?: CancellationToken
 ): Promise<ExtractedRecord[]> {
   const allRecords: ExtractedRecord[] = [];
   const worker = await getWorker();
 
   for (let i = 0; i < files.length; i++) {
+    if (cancellationToken?.cancelled) break;
+
     const file = files[i];
     onProgress(i, files.length, file.name);
 
@@ -313,6 +320,8 @@ export async function processPDFs(
       const numPages = pdfDoc.numPages;
 
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        if (cancellationToken?.cancelled) break;
+
         onProgress(i, files.length, `${file.name} — página ${pageNum}/${numPages}`);
 
         try {
