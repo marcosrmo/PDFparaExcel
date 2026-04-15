@@ -221,29 +221,29 @@ function detectName(text: string): string {
 }
 
 // ─── Separação de múltiplos campos na mesma linha ─────────────────────────────
-// Resolve: "Cidade: Anápolis, UF: MG" → [["Cidade","Anápolis"], ["UF","MG"]]
-// Só divide quando há 2+ rótulos CONHECIDOS na mesma linha (evita cortar valores)
+// Resolve: "Cidade: Anápolis UF: MG" → [["Cidade","Anápolis"], ["UF","MG"]]
+// Aceita QUALQUER token-palavra seguido de : ou = — não exige dicionário.
+// Ativado quando há 2+ pares na mesma linha (1 par sozinho é tratado no step 2).
 
 function parseMultipleKVsFromLine(line: string): Array<[string, string]> {
-  // Rótulos SEM espaço — palavras simples seguidas de : ou =
-  const labelRe = /(?:^|[,;]\s*|\s{2,})([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\-\.]{1,35})\s*[:=]\s*/g;
+  // Captura qualquer palavra (com letras, pontos, hífen) seguida de : ou =
+  // O separador pode ser tanto : quanto =
+  const labelRe = /([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\-\.]{0,35})\s*[:=]\s*/g;
   const positions: Array<{ label: string; valueStart: number; matchStart: number }> = [];
 
   let m: RegExpExecArray | null;
   while ((m = labelRe.exec(line)) !== null) {
     const label = m[1].trim();
-    const labelKey = normalizeKey(label);
-    // Só aceita rótulos que são palavras conhecidas do dicionário
-    if (CONTEXT_KEYWORDS.has(labelKey)) {
-      positions.push({
-        label,
-        valueStart: m.index + m[0].length,
-        matchStart: m.index,
-      });
-    }
+    // Descarta tokens puramente numéricos ou muito curtos (1 char) para evitar falsos positivos
+    if (label.length < 2 || /^\d+$/.test(label)) continue;
+    positions.push({
+      label,
+      valueStart: m.index + m[0].length,
+      matchStart: m.index,
+    });
   }
 
-  // Só aplica divisão se houver 2 ou mais rótulos conhecidos na linha
+  // Só aplica divisão se houver 2 ou mais pares na linha
   if (positions.length < 2) return [];
 
   const pairs: Array<[string, string]> = [];
@@ -298,13 +298,12 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     }
 
     // ── 2b. Rótulo sozinho na linha (ex: "cidade:") + valor na próxima linha
-    //       Suporta o padrão: "cidade:\nanápolis"
+    //       Suporta o padrão: "cidade:\nanápolis" — aceita : ou = como separador,
+    //       qualquer token (não exige dicionário)
     const labelOnlyMatch = line.match(/^([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\s\-\.]{1,35})\s*[:=]\s*$/);
     if (labelOnlyMatch) {
       const rawLabel = labelOnlyMatch[1].trim();
-      const labelKey = normalizeKey(rawLabel);
-      // Só aceita se for palavra conhecida do dicionário
-      if (CONTEXT_KEYWORDS.has(labelKey) && li + 1 < lines.length) {
+      if (rawLabel.length >= 2 && li + 1 < lines.length) {
         const nextLine = lines[li + 1].trim();
         // Próxima linha não pode ser outro rótulo
         const nextIsLabel = /^(.{1,50}?)\s*[:=]\s*(.*)$/.test(nextLine);
