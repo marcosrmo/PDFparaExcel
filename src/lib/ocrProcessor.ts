@@ -1,4 +1,10 @@
 import { createWorker, Worker } from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).href;
 
 export interface ExtractedRecord {
   id: string;
@@ -9,6 +15,7 @@ export interface ExtractedRecord {
   confidence: number;
   hasError: boolean;
   blockIndex: number;
+  pageNumber?: number;
 }
 
 export type ProgressCallback = (current: number, total: number, fileName: string) => void;
@@ -28,21 +35,16 @@ function normalizeOcrText(text: string): string {
 // ─── Mapa de sinônimos de rótulos ────────────────────────────────────────────
 
 const LABEL_SYNONYMS: Record<string, string> = {
-  // Pessoa
   nome: 'Nome', name: 'Nome', cliente: 'Nome', comprador: 'Nome',
   vendedor: 'Vendedor', responsavel: 'Responsável', titular: 'Titular',
-  // Contato
   tel: 'Telefone', telefone: 'Telefone', fone: 'Telefone', celular: 'Telefone',
   cel: 'Telefone', whatsapp: 'WhatsApp', wpp: 'WhatsApp', contato: 'Contato',
   phone: 'Telefone', ramal: 'Ramal',
   email: 'Email', 'e-mail': 'Email', mail: 'Email', correio: 'Email',
-  // Documentos
   cpf: 'CPF', cnpj: 'CNPJ', rg: 'RG', documento: 'Documento', doc: 'Documento',
-  // Data/Hora
   data: 'Data', date: 'Data', dt: 'Data', dia: 'Data',
   prazo: 'Prazo', vencimento: 'Vencimento', entrega: 'Entrega',
   nascimento: 'Nascimento', validade: 'Validade', hora: 'Hora',
-  // Endereço
   endereco: 'Endereço', logradouro: 'Endereço',
   rua: 'Rua', av: 'Avenida', avenida: 'Avenida', alameda: 'Alameda',
   travessa: 'Travessa', estrada: 'Estrada', rodovia: 'Rodovia',
@@ -51,7 +53,6 @@ const LABEL_SYNONYMS: Record<string, string> = {
   cidade: 'Cidade', municipio: 'Cidade', localidade: 'Cidade', city: 'Cidade',
   estado: 'Estado', uf: 'UF', pais: 'País', country: 'País',
   cep: 'CEP', zip: 'CEP',
-  // Produto
   produto: 'Produto', item: 'Item', mercadoria: 'Produto', product: 'Produto',
   cor: 'Cor', color: 'Cor', colour: 'Cor',
   tamanho: 'Tamanho', tam: 'Tamanho', size: 'Tamanho', medida: 'Medida',
@@ -60,18 +61,15 @@ const LABEL_SYNONYMS: Record<string, string> = {
   valor: 'Valor', preco: 'Preço', price: 'Preço', total: 'Total',
   subtotal: 'Subtotal', custo: 'Custo', desconto: 'Desconto', frete: 'Frete',
   descricao: 'Descrição', obs: 'Observação', observacao: 'Observação',
-  // Identificadores
   codigo: 'Código', cod: 'Código', code: 'Código', id: 'ID',
   pedido: 'Pedido', ordem: 'Ordem', protocolo: 'Protocolo',
   nota: 'Nota Fiscal', nf: 'Nota Fiscal', nfe: 'NF-e', serie: 'Série',
-  // Negócio
   marca: 'Marca', modelo: 'Modelo', referencia: 'Referência', sku: 'SKU',
   categoria: 'Categoria', tipo: 'Tipo', status: 'Status', situacao: 'Situação',
   pagamento: 'Pagamento', forma: 'Forma Pagamento', parcelas: 'Parcelas',
   banco: 'Banco', agencia: 'Agência', conta: 'Conta',
 };
 
-// Palavras-chave que podem aparecer como prefixo em linha sem separador
 const CONTEXT_KEYWORDS = new Set(Object.keys(LABEL_SYNONYMS));
 
 function removeAccents(s: string): string {
@@ -85,7 +83,6 @@ function normalizeKey(raw: string): string {
 function normalizeLabel(raw: string): string {
   const key = normalizeKey(raw);
   if (LABEL_SYNONYMS[key]) return LABEL_SYNONYMS[key];
-  // Capitaliza a primeira letra de cada palavra
   return raw.trim().replace(/\b\w/g, c => c.toUpperCase());
 }
 
@@ -158,19 +155,16 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
   };
 
   for (const line of lines) {
-    // 1. Key: Value  ou  Key = Value  (separador explícito)
     const kvMatch = line.match(/^(.{1,50}?)\s*[:=]\s*(.+)$/);
     if (kvMatch) {
       const rawLabel = kvMatch[1].trim();
       const value = kvMatch[2].trim();
-      // Evita rótulos que são apenas números ou muito longos
       if (rawLabel.length >= 1 && rawLabel.length <= 40 && !/^\d+$/.test(rawLabel)) {
         addField(rawLabel, value);
         continue;
       }
     }
 
-    // 2. Padrões automáticos sem rótulo explícito
     const phone = detectPhone(line);
     if (phone && !fields['Telefone']) { fields['Telefone'] = phone; continue; }
 
@@ -192,7 +186,6 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     const date = detectDate(line);
     if (date && !fields['Data']) { fields['Data'] = date; continue; }
 
-    // 3. Keyword no início da linha sem separador: "cor preta" → Cor: preta
     const keywordMatch = line.match(/^([a-záàâãéèêíïóôõöúçñ]{2,20})\s+(.{1,80})$/i);
     if (keywordMatch) {
       const kw = normalizeKey(keywordMatch[1]);
@@ -205,7 +198,6 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     }
   }
 
-  // 4. Nome em maiúsculas se não detectado ainda
   if (!fields['Nome']) {
     const name = detectName(block);
     if (name) fields['Nome'] = name;
@@ -217,50 +209,57 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
 // ─── Divisão em blocos de registros ─────────────────────────────────────────
 
 function splitIntoBlocks(text: string): string[] {
-  // Divide em blocos por linhas vazias ou separadores (---, ===, ___)
   const parts = text.split(/\n{2,}|[-=_]{3,}/);
   const blocks = parts.map(p => p.trim()).filter(p => p.length > 3);
-
-  // Se há apenas 1 bloco mas com padrões repetidos (ex: vários nomes/telefones),
-  // tenta sub-dividir linha a linha agrupando por setor
-  if (blocks.length === 1) {
-    return [blocks[0]];
-  }
-
+  if (blocks.length === 1) return [blocks[0]];
   return blocks;
 }
 
-// ─── Pré-processamento de imagem ─────────────────────────────────────────────
+// ─── Renderizar página PDF em canvas ─────────────────────────────────────────
 
-function preprocessImage(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
-    const img = new Image();
+async function renderPageToCanvas(
+  page: pdfjsLib.PDFPageProxy,
+  scale = 2.0
+): Promise<HTMLCanvasElement> {
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d')!;
 
-    img.onload = () => {
-      const scale = Math.max(1, 2000 / Math.max(img.width, img.height));
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas;
+}
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = imageData.data;
+// ─── Aplicar pré-processamento para OCR (contraste/grayscale) ───────────────
 
-      for (let i = 0; i < d.length; i += 4) {
-        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const contrast = 1.8;
-        const adjusted = ((gray / 255 - 0.5) * contrast + 0.5) * 255;
-        const val = Math.max(0, Math.min(255, adjusted));
-        d[i] = d[i + 1] = d[i + 2] = val;
-      }
+function applyOcrPreprocessing(canvas: HTMLCanvasElement): string {
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
 
-      ctx.putImageData(imageData, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
-    };
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const contrast = 1.8;
+    const adjusted = ((gray / 255 - 0.5) * contrast + 0.5) * 255;
+    const val = Math.max(0, Math.min(255, adjusted));
+    d[i] = d[i + 1] = d[i + 2] = val;
+  }
 
-    img.src = URL.createObjectURL(file);
-  });
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
+// ─── Extrair texto nativo do PDF ─────────────────────────────────────────────
+
+async function extractNativeText(page: pdfjsLib.PDFPageProxy): Promise<string> {
+  const content = await page.getTextContent();
+  return content.items
+    .filter((item): item is pdfjsLib.TextItem => 'str' in item)
+    .map(item => item.str)
+    .join(' ')
+    .replace(/\s{2,}/g, '\n')
+    .trim();
 }
 
 // ─── Worker Tesseract ────────────────────────────────────────────────────────
@@ -274,9 +273,9 @@ async function getWorker(): Promise<Worker> {
   return workerInstance;
 }
 
-// ─── Processamento principal ─────────────────────────────────────────────────
+// ─── Processamento principal de PDFs ─────────────────────────────────────────
 
-export async function processImages(
+export async function processPDFs(
   files: File[],
   onProgress: ProgressCallback
 ): Promise<ExtractedRecord[]> {
@@ -288,51 +287,92 @@ export async function processImages(
     onProgress(i, files.length, file.name);
 
     try {
-      const processedDataUrl = await preprocessImage(file);
-      const { data } = await worker.recognize(processedDataUrl);
-      const normalized = normalizeOcrText(data.text);
-      const imageUrl = URL.createObjectURL(file);
-      const blocks = splitIntoBlocks(normalized);
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdfDoc.numPages;
 
-      let addedAny = false;
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        onProgress(i, files.length, `${file.name} — página ${pageNum}/${numPages}`);
 
-      for (let b = 0; b < blocks.length; b++) {
-        const fields = extractFieldsFromBlock(blocks[b]);
-        if (Object.keys(fields).length === 0) continue;
+        try {
+          const page = await pdfDoc.getPage(pageNum);
 
-        allRecords.push({
-          id: `${Date.now()}-${i}-${b}`,
-          fileName: file.name,
-          imageUrl,
-          fields,
-          rawText: blocks[b],
-          confidence: data.confidence,
-          hasError: false,
-          blockIndex: b + 1,
-        });
-        addedAny = true;
-      }
+          // 1. Tenta extrair texto nativo do PDF
+          const nativeText = await extractNativeText(page);
 
-      if (!addedAny) {
-        allRecords.push({
-          id: `${Date.now()}-${i}-0`,
-          fileName: file.name,
-          imageUrl,
-          fields: {},
-          rawText: normalized,
-          confidence: data.confidence,
-          hasError: true,
-          blockIndex: 0,
-        });
+          // 2. Renderiza a página para canvas (para preview e OCR)
+          const canvas = await renderPageToCanvas(page, 2.0);
+          const pageImageUrl = canvas.toDataURL('image/png');
+
+          let finalText = '';
+          let confidence = 100;
+
+          // 3. Se o texto nativo é substancial, usa ele; senão, aplica OCR
+          if (nativeText.length > 80) {
+            finalText = nativeText;
+            confidence = 100;
+          } else {
+            const processedDataUrl = applyOcrPreprocessing(canvas);
+            const { data } = await worker.recognize(processedDataUrl);
+            finalText = normalizeOcrText(data.text);
+            confidence = data.confidence;
+          }
+
+          // 4. Tenta combinar: texto nativo + OCR (para PDFs com imagens embutidas)
+          if (nativeText.length > 30 && nativeText.length <= 80) {
+            const processedDataUrl = applyOcrPreprocessing(canvas);
+            const { data } = await worker.recognize(processedDataUrl);
+            const ocrText = normalizeOcrText(data.text);
+            finalText = [nativeText, ocrText].join('\n');
+            confidence = Math.round((100 + data.confidence) / 2);
+          }
+
+          const blocks = splitIntoBlocks(finalText);
+          let addedAny = false;
+
+          for (let b = 0; b < blocks.length; b++) {
+            const fields = extractFieldsFromBlock(blocks[b]);
+            if (Object.keys(fields).length === 0) continue;
+
+            allRecords.push({
+              id: `${Date.now()}-${i}-${pageNum}-${b}`,
+              fileName: file.name,
+              imageUrl: pageImageUrl,
+              fields,
+              rawText: blocks[b],
+              confidence,
+              hasError: false,
+              blockIndex: b + 1,
+              pageNumber: pageNum,
+            });
+            addedAny = true;
+          }
+
+          if (!addedAny) {
+            allRecords.push({
+              id: `${Date.now()}-${i}-${pageNum}-0`,
+              fileName: file.name,
+              imageUrl: pageImageUrl,
+              fields: {},
+              rawText: finalText || '(sem texto detectado)',
+              confidence,
+              hasError: true,
+              blockIndex: 0,
+              pageNumber: pageNum,
+            });
+          }
+        } catch (pageErr) {
+          console.error(`Erro na página ${pageNum} de ${file.name}:`, pageErr);
+        }
       }
     } catch (err) {
       console.error(`Erro ao processar ${file.name}:`, err);
       allRecords.push({
         id: `${Date.now()}-${i}-err`,
         fileName: file.name,
-        imageUrl: URL.createObjectURL(file),
+        imageUrl: '',
         fields: {},
-        rawText: `Erro: ${err instanceof Error ? err.message : 'Falha no OCR'}`,
+        rawText: `Erro: ${err instanceof Error ? err.message : 'Falha ao ler PDF'}`,
         confidence: 0,
         hasError: true,
         blockIndex: 0,

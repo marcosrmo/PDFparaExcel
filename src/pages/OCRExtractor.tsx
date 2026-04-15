@@ -6,7 +6,7 @@ import { DropZone } from '@/components/ocr/DropZone';
 import { ImagePreviewList } from '@/components/ocr/ImagePreviewList';
 import { ProcessingProgress } from '@/components/ocr/ProcessingProgress';
 import { DataTable } from '@/components/ocr/DataTable';
-import { processImages, type ExtractedRecord } from '@/lib/ocrProcessor';
+import { processPDFs, type ExtractedRecord } from '@/lib/ocrProcessor';
 import { exportToExcel } from '@/lib/excelExport';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,7 +31,7 @@ export default function OCRExtractor() {
     setRecords([]);
 
     try {
-      const results = await processImages(files, (current, total, fileName) => {
+      const results = await processPDFs(files, (current, total, fileName) => {
         setProgress({ current, total, fileName });
       });
       setRecords(results);
@@ -71,17 +71,17 @@ export default function OCRExtractor() {
             <div className="relative">
               <img
                 src={logoUrl}
-                alt="Imagem para Excel LeadCompra"
+                alt="PDF para Excel LeadCompra"
                 className="h-11 w-11 rounded-xl object-contain drop-shadow-lg"
               />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight">
-                <span className="gradient-text">Imagem para Excel</span>{' '}
+                <span className="gradient-text">PDF para Excel</span>{' '}
                 <span className="text-foreground/90">LeadCompra</span>
               </h1>
               <p className="text-xs text-muted-foreground leading-tight">
-                Extraia nomes e telefones de imagens automaticamente
+                Converta PDFs em planilhas Excel automaticamente com OCR
               </p>
             </div>
           </div>
@@ -103,12 +103,12 @@ export default function OCRExtractor() {
         {!files.length && !records.length && (
           <div className="text-center space-y-3 pb-2">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              <span className="gradient-text">Transforme imagens</span>
+              <span className="gradient-text">Transforme seus PDFs</span>
               <br />
               <span className="text-foreground/80">em planilhas Excel</span>
             </h2>
             <p className="text-muted-foreground text-base max-w-md mx-auto">
-              Faça upload das suas imagens, extraímos os dados automaticamente e geramos um Excel pronto para usar.
+              Faça upload dos seus PDFs. Extraímos texto nativamente e aplicamos OCR em imagens para gerar um Excel completo.
             </p>
           </div>
         )}
@@ -127,7 +127,7 @@ export default function OCRExtractor() {
               className="gradient-primary text-white gap-2 px-6 py-2.5 font-semibold shadow-lg hover:opacity-90 hover:shadow-primary/20 hover:shadow-xl transition-all duration-200"
             >
               <Play className="h-4 w-4" />
-              Processar {files.length} {files.length === 1 ? 'imagem' : 'imagens'}
+              Processar {files.length} {files.length === 1 ? 'PDF' : 'PDFs'}
             </Button>
             <Button
               variant="outline"
