@@ -52,6 +52,9 @@ const LABEL_SYNONYMS: Record<string, string> = {
   tel: 'Telefone', telefone: 'Telefone', fone: 'Telefone',
   phone: 'Telefone', ramal: 'Ramal', fax: 'Fax',
   celular: 'Celular', cel: 'Celular', movel: 'Celular', mobile: 'Celular',
+  // Rótulos compostos com "celular" → prioriza Celular
+  telefonecelular: 'Celular', telcel: 'Celular', fonecelular: 'Celular',
+  telefonemovel: 'Celular', fonemovel: 'Celular', celulartel: 'Celular',
   whatsapp: 'WhatsApp', wpp: 'WhatsApp', contato: 'Contato',
   email: 'Email', 'e-mail': 'Email', mail: 'Email', correio: 'Email',
   site: 'Site', website: 'Site', url: 'Site',
@@ -378,6 +381,18 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
   if (!fields['UF']) {
     const uf = detectUF(block);
     if (uf) fields['UF'] = uf;
+  }
+
+  // ── 6. Separa valor duplo de Telefone em Telefone + Celular
+  //       Ex: "34 3831-3083 / 34 9938-4122" → Telefone + Celular
+  if (fields['Telefone'] && !fields['Celular']) {
+    const raw = fields['Telefone'];
+    // Divide por / , ; ou espaços entre dois blocos de dígitos
+    const parts = raw.split(/\s*[\/,;]\s*/).filter(p => p.trim().length >= 7);
+    if (parts.length >= 2) {
+      fields['Telefone'] = parts[0].trim();
+      fields['Celular'] = parts[1].trim();
+    }
   }
 
   return fields;
