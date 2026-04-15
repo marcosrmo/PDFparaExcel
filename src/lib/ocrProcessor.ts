@@ -231,6 +231,27 @@ async function renderPageToCanvas(
   return canvas;
 }
 
+// ─── Gerar miniatura de baixa resolução para preview ─────────────────────────
+
+async function renderPageThumbnail(
+  page: pdfjsLib.PDFPageProxy,
+  maxWidth = 300
+): Promise<string> {
+  const rawViewport = page.getViewport({ scale: 1.0 });
+  const scale = maxWidth / rawViewport.width;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d')!;
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const thumb = canvas.toDataURL('image/jpeg', 0.6);
+  // Libera o canvas da memória
+  canvas.width = 0;
+  canvas.height = 0;
+  return thumb;
+}
+
 // ─── Aplicar pré-processamento para OCR (contraste/grayscale) ───────────────
 
 function applyOcrPreprocessing(canvas: HTMLCanvasElement): string {
@@ -300,31 +321,34 @@ export async function processPDFs(
           // 1. Tenta extrair texto nativo do PDF
           const nativeText = await extractNativeText(page);
 
-          // 2. Renderiza a página para canvas (para preview e OCR)
-          const canvas = await renderPageToCanvas(page, 2.0);
-          const pageImageUrl = canvas.toDataURL('image/png');
+          // 2. Gera miniatura leve para preview (baixa resolução)
+          const pageImageUrl = await renderPageThumbnail(page, 300);
 
           let finalText = '';
           let confidence = 100;
 
-          // 3. Se o texto nativo é substancial, usa ele; senão, aplica OCR
+          // 3. Se o texto nativo é substancial, usa ele diretamente (sem OCR)
           if (nativeText.length > 80) {
             finalText = nativeText;
             confidence = 100;
           } else {
-            const processedDataUrl = applyOcrPreprocessing(canvas);
-            const { data } = await worker.recognize(processedDataUrl);
-            finalText = normalizeOcrText(data.text);
-            confidence = data.confidence;
-          }
+            // Renderiza em alta resolução APENAS para OCR, depois libera da memória
+            const hiResCanvas = await renderPageToCanvas(page, 2.0);
+            const processedDataUrl = applyOcrPreprocessing(hiResCanvas);
+            // Libera o canvas de alta resolução imediatamente
+            hiResCanvas.width = 0;
+            hiResCanvas.height = 0;
 
-          // 4. Tenta combinar: texto nativo + OCR (para PDFs com imagens embutidas)
-          if (nativeText.length > 30 && nativeText.length <= 80) {
-            const processedDataUrl = applyOcrPreprocessing(canvas);
             const { data } = await worker.recognize(processedDataUrl);
             const ocrText = normalizeOcrText(data.text);
-            finalText = [nativeText, ocrText].join('\n');
-            confidence = Math.round((100 + data.confidence) / 2);
+
+            if (nativeText.length > 30) {
+              finalText = [nativeText, ocrText].join('\n');
+              confidence = Math.round((100 + data.confidence) / 2);
+            } else {
+              finalText = ocrText;
+              confidence = data.confidence;
+            }
           }
 
           const blocks = splitIntoBlocks(finalText);
