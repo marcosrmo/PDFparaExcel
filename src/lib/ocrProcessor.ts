@@ -39,42 +39,82 @@ function normalizeOcrText(text: string): string {
 // ─── Mapa de sinônimos de rótulos ────────────────────────────────────────────
 
 const LABEL_SYNONYMS: Record<string, string> = {
-  nome: 'Nome', name: 'Nome', cliente: 'Nome', comprador: 'Nome',
+  // Pessoa
+  nome: 'Nome', name: 'Nome', cliente: 'Nome', comprador: 'Nome', proprietario: 'Nome',
+  segurado: 'Nome', paciente: 'Nome', funcionario: 'Nome', colaborador: 'Nome',
   vendedor: 'Vendedor', responsavel: 'Responsável', titular: 'Titular',
+  socio: 'Sócio', representante: 'Representante', diretor: 'Diretor',
+  nascimento: 'Nascimento', dtnasc: 'Nascimento', datanasc: 'Nascimento',
+  naturalidade: 'Naturalidade', nacionalidade: 'Nacionalidade',
+  sexo: 'Sexo', genero: 'Sexo', estadocivil: 'Estado Civil',
+  profissao: 'Profissão', ocupacao: 'Profissão', cargo: 'Cargo',
+  // Contato
   tel: 'Telefone', telefone: 'Telefone', fone: 'Telefone', celular: 'Telefone',
   cel: 'Telefone', whatsapp: 'WhatsApp', wpp: 'WhatsApp', contato: 'Contato',
-  phone: 'Telefone', ramal: 'Ramal',
+  phone: 'Telefone', ramal: 'Ramal', fax: 'Fax',
   email: 'Email', 'e-mail': 'Email', mail: 'Email', correio: 'Email',
-  cpf: 'CPF', cnpj: 'CNPJ', rg: 'RG', documento: 'Documento', doc: 'Documento',
+  site: 'Site', website: 'Site', url: 'Site',
+  // Documentos pessoais
+  cpf: 'CPF', cnpj: 'CNPJ', rg: 'RG', cnh: 'CNH', ctps: 'CTPS',
+  pis: 'PIS', pasep: 'PIS', nit: 'NIT', matricula: 'Matrícula',
+  documento: 'Documento', doc: 'Documento', identidade: 'RG', habilitacao: 'CNH',
+  passaporte: 'Passaporte', titulo: 'Título Eleitor',
+  // Empresa
+  empresa: 'Empresa', razaosocial: 'Razão Social', nomefantasia: 'Nome Fantasia',
+  fantasia: 'Nome Fantasia', fornecedor: 'Fornecedor', fabricante: 'Fabricante',
+  transportadora: 'Transportadora', parceiro: 'Parceiro',
+  // Data/Hora
   data: 'Data', date: 'Data', dt: 'Data', dia: 'Data',
+  dataemissao: 'Data Emissão', dataentrega: 'Data Entrega',
   prazo: 'Prazo', vencimento: 'Vencimento', entrega: 'Entrega',
-  nascimento: 'Nascimento', validade: 'Validade', hora: 'Hora',
+  validade: 'Validade', hora: 'Hora', horario: 'Horário',
+  // Endereço
   endereco: 'Endereço', logradouro: 'Endereço',
   rua: 'Rua', av: 'Avenida', avenida: 'Avenida', alameda: 'Alameda',
   travessa: 'Travessa', estrada: 'Estrada', rodovia: 'Rodovia',
-  numero: 'Número', nro: 'Número', complemento: 'Complemento',
+  numero: 'Número', nro: 'Número', complemento: 'Complemento', apto: 'Complemento',
   bairro: 'Bairro', distrito: 'Distrito', setor: 'Setor',
   cidade: 'Cidade', municipio: 'Cidade', localidade: 'Cidade', city: 'Cidade',
-  estado: 'Estado', uf: 'UF', pais: 'País', country: 'País',
+  estado: 'UF', uf: 'UF', pais: 'País', country: 'País',
   cep: 'CEP', zip: 'CEP',
+  // Produto / Objeto
   produto: 'Produto', item: 'Item', mercadoria: 'Produto', product: 'Produto',
+  servico: 'Serviço', bem: 'Bem', ativo: 'Ativo',
   cor: 'Cor', color: 'Cor', colour: 'Cor',
   tamanho: 'Tamanho', tam: 'Tamanho', size: 'Tamanho', medida: 'Medida',
   peso: 'Peso', largura: 'Largura', altura: 'Altura', comprimento: 'Comprimento',
   quantidade: 'Quantidade', qtd: 'Quantidade', qt: 'Quantidade', qtde: 'Quantidade', qty: 'Quantidade',
+  unidade: 'Unidade', un: 'Unidade', und: 'Unidade',
+  // Financeiro
   valor: 'Valor', preco: 'Preço', price: 'Preço', total: 'Total',
   subtotal: 'Subtotal', custo: 'Custo', desconto: 'Desconto', frete: 'Frete',
-  descricao: 'Descrição', obs: 'Observação', observacao: 'Observação',
+  acrescimo: 'Acréscimo', juros: 'Juros', multa: 'Multa',
+  salario: 'Salário', remuneracao: 'Salário', rendimento: 'Rendimento',
+  // Identificadores
   codigo: 'Código', cod: 'Código', code: 'Código', id: 'ID',
-  pedido: 'Pedido', ordem: 'Ordem', protocolo: 'Protocolo',
-  nota: 'Nota Fiscal', nf: 'Nota Fiscal', nfe: 'NF-e', serie: 'Série',
+  pedido: 'Pedido', ordem: 'Ordem', protocolo: 'Protocolo', processo: 'Processo',
+  nota: 'Nota Fiscal', nf: 'Nota Fiscal', nfe: 'NF-e', serie: 'Série', chave: 'Chave',
+  contrato: 'Contrato', apolice: 'Apólice', sinistro: 'Sinistro',
+  // Produto/Objeto
   marca: 'Marca', modelo: 'Modelo', referencia: 'Referência', sku: 'SKU',
   categoria: 'Categoria', tipo: 'Tipo', status: 'Status', situacao: 'Situação',
+  descricao: 'Descrição', obs: 'Observação', observacao: 'Observação',
+  especificacao: 'Especificação', caracteristica: 'Característica',
+  serie: 'Série', lote: 'Lote', fabricacao: 'Fabricação', garantia: 'Garantia',
+  // Pagamento
   pagamento: 'Pagamento', forma: 'Forma Pagamento', parcelas: 'Parcelas',
-  banco: 'Banco', agencia: 'Agência', conta: 'Conta',
+  banco: 'Banco', agencia: 'Agência', conta: 'Conta', pix: 'PIX',
+  boleto: 'Boleto', cartao: 'Cartão',
 };
 
 const CONTEXT_KEYWORDS = new Set(Object.keys(LABEL_SYNONYMS));
+
+// UFs brasileiras válidas
+const VALID_UF = new Set([
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO',
+  'MA','MT','MS','MG','PA','PB','PR','PE','PI',
+  'RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+]);
 
 function removeAccents(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -136,13 +176,83 @@ function detectMoney(text: string): string {
   return m ? m[0].trim() : '';
 }
 
-function detectName(text: string): string {
-  const m = text.match(/([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]{2,}(?:\s+[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]{2,})+)/g);
+function detectRG(text: string): string {
+  const m = text.match(/\b\d{1,2}\.?\d{3}\.?\d{3}[-]?[\dXx]\b/g);
   if (!m) return '';
-  return m
-    .map(s => s.trim())
-    .filter(s => s.length >= 5)
-    .sort((a, b) => b.length - a.length)[0] || '';
+  const valid = m.find(v => {
+    const d = v.replace(/\D/g, '');
+    return d.length >= 7 && d.length <= 9;
+  });
+  return valid || '';
+}
+
+function detectUF(text: string): string {
+  const m = text.match(/\b([A-Z]{2})\b/g);
+  if (!m) return '';
+  return m.find(uf => VALID_UF.has(uf)) || '';
+}
+
+function detectCompany(text: string): string {
+  const m = text.match(
+    /([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ][A-Za-záàâãéèêíïóôõöúçñ\s&,\.\-]{3,60}?(?:Ltda\.?|S\.?A\.?|S\.?A\.?S\.?|ME\b|EIRELI\b|EPP\b|SS\b|SC\b|LTDA\b|SA\b))/g
+  );
+  if (!m) return '';
+  return m[0].trim();
+}
+
+function detectName(text: string): string {
+  // Nomes em caixa alta (ex: JOÃO SILVA)
+  const upper = text.match(/([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]{2,}(?:\s+[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]{2,})+)/g);
+  // Nomes em capitalização normal (ex: João Silva)
+  const proper = text.match(
+    /\b([A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ][a-záàâãéèêíïóôõöúçñ]{1,}(?:\s+(?:da?|de|do|dos|das|e|[A-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ][a-záàâãéèêíïóôõöúçñ]{1,})){1,6})\b/g
+  );
+
+  const candidates = [
+    ...(upper || []).filter(s => s.length >= 8 && s.split(' ').length >= 2),
+    ...(proper || []).filter(s => s.length >= 8 && s.split(' ').length >= 2),
+  ];
+
+  if (!candidates.length) return '';
+  return candidates.sort((a, b) => b.length - a.length)[0];
+}
+
+// ─── Separação de múltiplos campos na mesma linha ─────────────────────────────
+// Resolve: "Cidade: Anápolis, UF: MG" → [["Cidade","Anápolis"], ["UF","MG"]]
+
+function parseMultipleKVsFromLine(line: string): Array<[string, string]> {
+  // Encontra todas as posições de "Label:" ou "Label =" na linha
+  const labelRe = /(?:^|[,;\s]\s*)([A-Za-záàâãéèêíïóôõöúçñ][A-Za-záàâãéèêíïóôõöúçñ\s\-\.\/]{0,35}?)\s*[:=]\s*/g;
+  const positions: Array<{ label: string; valueStart: number; matchStart: number }> = [];
+
+  let m: RegExpExecArray | null;
+  while ((m = labelRe.exec(line)) !== null) {
+    const label = m[1].trim();
+    if (
+      label.length >= 1 &&
+      label.length <= 40 &&
+      !/^\d/.test(label) &&
+      !/^\s*$/.test(label)
+    ) {
+      positions.push({
+        label,
+        valueStart: m.index + m[0].length,
+        matchStart: m.index,
+      });
+    }
+  }
+
+  if (positions.length === 0) return [];
+
+  const pairs: Array<[string, string]> = [];
+  for (let i = 0; i < positions.length; i++) {
+    const start = positions[i].valueStart;
+    const end = i + 1 < positions.length ? positions[i + 1].matchStart : line.length;
+    let value = line.slice(start, end).replace(/[,;\s]+$/, '').trim();
+    if (value) pairs.push([positions[i].label, value]);
+  }
+
+  return pairs;
 }
 
 // ─── Extração de campos de um bloco de texto ─────────────────────────────────
@@ -159,6 +269,18 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
   };
 
   for (const line of lines) {
+    // ── 1. Tenta separar múltiplos KV na mesma linha (ex: "Cidade: Anápolis, UF: MG")
+    const multiPairs = parseMultipleKVsFromLine(line);
+    if (multiPairs.length >= 2) {
+      for (const [lbl, val] of multiPairs) {
+        if (lbl.length >= 1 && lbl.length <= 40 && !/^\d+$/.test(lbl)) {
+          addField(lbl, val);
+        }
+      }
+      continue;
+    }
+
+    // ── 2. KV simples: "Chave: Valor" ou "Chave = Valor"
     const kvMatch = line.match(/^(.{1,50}?)\s*[:=]\s*(.+)$/);
     if (kvMatch) {
       const rawLabel = kvMatch[1].trim();
@@ -169,9 +291,7 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
       }
     }
 
-    const phone = detectPhone(line);
-    if (phone && !fields['Telefone']) { fields['Telefone'] = phone; continue; }
-
+    // ── 3. Padrões automáticos sem rótulo explícito
     const cnpj = detectCNPJ(line);
     if (cnpj && !fields['CNPJ']) { fields['CNPJ'] = cnpj; continue; }
 
@@ -180,6 +300,9 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
 
     const cep = detectCEP(line);
     if (cep && !fields['CEP']) { fields['CEP'] = cep; continue; }
+
+    const phone = detectPhone(line);
+    if (phone && !fields['Telefone']) { fields['Telefone'] = phone; continue; }
 
     const email = detectEmail(line);
     if (email && !fields['Email']) { fields['Email'] = email; continue; }
@@ -190,6 +313,13 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     const date = detectDate(line);
     if (date && !fields['Data']) { fields['Data'] = date; continue; }
 
+    const rg = detectRG(line);
+    if (rg && !fields['RG'] && !fields['CPF']) { fields['RG'] = rg; continue; }
+
+    const uf = detectUF(line);
+    if (uf && !fields['UF']) { fields['UF'] = uf; }
+
+    // ── 4. Keyword no início da linha sem separador: "cidade Anápolis"
     const keywordMatch = line.match(/^([a-záàâãéèêíïóôõöúçñ]{2,20})\s+(.{1,80})$/i);
     if (keywordMatch) {
       const kw = normalizeKey(keywordMatch[1]);
@@ -202,9 +332,25 @@ function extractFieldsFromBlock(block: string): Record<string, string> {
     }
   }
 
+  // ── 5. Fallbacks: entidades não detectadas via rótulo
   if (!fields['Nome']) {
     const name = detectName(block);
     if (name) fields['Nome'] = name;
+  }
+
+  if (!fields['Empresa'] && !fields['Razão Social']) {
+    const company = detectCompany(block);
+    if (company) fields['Empresa'] = company;
+  }
+
+  if (!fields['RG'] && !fields['CPF']) {
+    const rg = detectRG(block);
+    if (rg) fields['RG'] = rg;
+  }
+
+  if (!fields['UF']) {
+    const uf = detectUF(block);
+    if (uf) fields['UF'] = uf;
   }
 
   return fields;
@@ -427,16 +573,33 @@ export function terminateWorker() {
 // ─── Utilitário: todas as colunas únicas de uma lista de registros ──────────
 
 const PRIORITY_COLUMNS = [
-  'Nome', 'CPF', 'CNPJ', 'RG', 'Telefone', 'WhatsApp', 'Contato',
-  'Email', 'Data', 'Nascimento', 'Prazo', 'Vencimento', 'Validade',
+  // Pessoa
+  'Nome', 'CPF', 'RG', 'CNH', 'PIS', 'Matrícula', 'Nascimento', 'Sexo', 'Estado Civil',
+  'Naturalidade', 'Nacionalidade', 'Profissão', 'Cargo',
+  // Empresa
+  'Empresa', 'Razão Social', 'Nome Fantasia', 'CNPJ',
+  // Contato
+  'Telefone', 'WhatsApp', 'Fax', 'Email', 'Site', 'Contato',
+  // Endereço
   'Endereço', 'Rua', 'Avenida', 'Número', 'Complemento', 'Bairro',
-  'Cidade', 'UF', 'Estado', 'CEP', 'País',
-  'Produto', 'Item', 'Código', 'SKU', 'Referência', 'Marca', 'Modelo',
-  'Cor', 'Tamanho', 'Medida', 'Peso', 'Quantidade',
-  'Valor', 'Preço', 'Total', 'Subtotal', 'Desconto', 'Frete',
-  'Nota Fiscal', 'NF-e', 'Pedido', 'Protocolo',
-  'Pagamento', 'Forma Pagamento', 'Parcelas', 'Banco', 'Agência', 'Conta',
-  'Descrição', 'Observação', 'Tipo', 'Categoria', 'Status', 'Situação',
+  'Cidade', 'UF', 'CEP', 'País',
+  // Datas
+  'Data', 'Data Emissão', 'Data Entrega', 'Nascimento', 'Validade', 'Prazo', 'Vencimento', 'Entrega',
+  // Produto / Objeto
+  'Produto', 'Serviço', 'Item', 'Código', 'SKU', 'Referência', 'Marca', 'Modelo',
+  'Cor', 'Tamanho', 'Medida', 'Peso', 'Quantidade', 'Unidade',
+  'Largura', 'Altura', 'Comprimento', 'Série', 'Lote', 'Fabricação', 'Garantia',
+  'Especificação', 'Característica', 'Descrição', 'Categoria', 'Tipo',
+  // Financeiro
+  'Valor', 'Preço', 'Total', 'Subtotal', 'Desconto', 'Frete', 'Acréscimo', 'Juros', 'Multa',
+  'Salário', 'Custo',
+  // Documentos fiscais
+  'Nota Fiscal', 'NF-e', 'Chave', 'Pedido', 'Ordem', 'Protocolo', 'Processo', 'Contrato', 'Apólice',
+  // Pagamento
+  'Pagamento', 'Forma Pagamento', 'Parcelas', 'Banco', 'Agência', 'Conta', 'PIX', 'Boleto', 'Cartão',
+  // Misc
+  'Status', 'Situação', 'Observação', 'Responsável', 'Titular', 'Vendedor',
+  'Fornecedor', 'Fabricante', 'Transportadora',
 ];
 
 export function getAllColumns(records: ExtractedRecord[]): string[] {
